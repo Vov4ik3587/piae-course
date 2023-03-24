@@ -99,7 +99,7 @@ def addNewPoint(x, p, grid, linear, flag, usereps):
     eps = max * usereps
     delta = abs(max - np.trace(np.dot(M, D)))
     # np.around((np.linalg.det(M)), 9))
-    inserter("%04.14e \n" % np.linalg.det(M))
+    inserter("%04.14e \n" % np.trace(M))
     print(np.linalg.det(M))
     return delta, eps, x, p
 
@@ -111,10 +111,10 @@ def D_optim(M):
 
 # функция нахождения максимума на сетке, для добавления новой точки
 def findMaxFi(grid, D, linear):
-    max = np.dot(np.dot(func(grid[0], linear), D), func(grid[0], linear).T)
+    max = np.dot(np.dot(func(grid[0], linear), D**2), func(grid[0], linear).T)
     maxdot = grid[0]
     for i in grid:
-        f = np.dot(np.dot(func(i, linear), D), func(i, linear).T)
+        f = np.dot(np.dot(func(i, linear), D**2), func(i, linear).T)
         if f > max:
             max = f
             maxdot = i
@@ -180,7 +180,7 @@ def removeDotsWithSmallWeitgh(x, p):
 
 def Plot(x, grid, D, label, linear):
     Dfunc = list(map(lambda x: np.dot(
-        np.dot(func(x, linear), D), func(x, linear)), grid))
+        np.dot(func(x, linear), D**2), func(x, linear)), grid))
     maxD = max(Dfunc)
     for i in x:
         plt.scatter(i, 0)
