@@ -1,146 +1,209 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
-
-matplotlib.use("TKAgg")
-
-# Линейная однофакторная модель
 
 
+# заполняем входной файл
+def write(filename, x, p):
+    f = open(filename, "w")
+    f.write(str(len(x)) + "\n")
+    for i in x:
+        f.write(str(i) + "\n")
+    f.write(str(p[0]))
+    for i in p[1:]:
+        f.write("\n" + str(i))
+    f.close()
 
 
-
-def model(x, delta):
-    return [[1], [x], [mu1(x, delta)], [mu1(x, delta) * x]]
-
-# Вычисление информационных матриц для каждого плана
-
-
-def inf_matrix(x, p, delta):
-    M = np.zeros((6, 6))
+# создание матрицы информационной матрицы М
+def makeM(x, p, delta):
+    M = np.zeros((len(func(x[0], delta)), len(func(x[0], delta))))
     for i in range(len(x)):
-        M += p[i] * np.dot(model(x[i], delta),
-                           np.transpose(model(x[i], delta)))
+        M += p[i] * make_partM(func(x[i], delta))
     return M
 
 
-# Вычисление дисперсионной матрицы
+# создание части информационной матрицы матрицы, для каждого элемента спектра плана
+def make_partM(fx):
+    M = np.zeros((len(fx), len(fx)))
+    for i in range(len(fx)):
+        for j in range(len(fx)):
+            M[i][j] = fx[i] * fx[j]
+    return M
 
-def disp_matrix(M):
+
+# возвращает вектор со значениями нашей функции
+def func(x, delta):
+    return np.array([1, x, mu1(x, delta), x * mu1(x, delta)])
+
+
+def mu1(dot, delta):
+    if -delta >= dot >= -1:
+        return 1.
+    elif delta >= dot >= -delta:
+        return (delta - dot) / 2 * delta
+    elif dot > delta:
+        return 0
+
+
+# создание начального плана
+def makeUPlan(N):
+    return list(np.linspace(-1, 1, N)), [1.0 / N for _ in range(N)]
+
+
+# создание матрицы D из матрицы М
+def makeD(M):
     return np.linalg.inv(M)
 
-# Создание плана
+
+# Добавление новой точки
+def addNewPoint(x, p, grid, delta, flag, usereps=0.01):
+    M = makeM(x, p, delta)
+    D = makeD(M)
+    curientD = A_optim(D)
+    max, maxdot = findMaxFi(grid, D, delta)
+    if flag:
+        x.append(maxdot)
+        p = addToP(curientD, p, x, delta)
+    eps = max * usereps
+    delta = abs(max - np.trace(D @ D @ M))
+    print(np.linalg.det(M))
+    return delta, eps, x, p
 
 
-def make_plan():
-    x, p = [], []
-    grid = np.arange(-1, 1.01, 0.25)
-    
-    for i in range(len(grid)):
-        x.append([grid[i]])
-        p.append(1/n)
+# Проверка на D-оптимальность ( вычисление критерия для заданной матрицы)
+def A_optim(D):
+    return -np.trace(D)
 
+
+# функция нахождения максимума на сетке, для добавления новой точки
+def findMaxFi(grid, D, delta):
+    max = np.dot(np.dot(func(grid[0], delta), D @ D), func(grid[0], delta).T)
+    maxdot = grid[0]
+    for i in grid:
+        f = np.dot(np.dot(func(i, delta), D @ D), func(i, delta).T)
+        if f > max:
+            max = f
+            maxdot = i
+    return max, maxdot
+
+
+# Подбор веса для новой точки
+def addToP(curientD, p, x, delta):
+    newD = curientD - 1
+    ksy = 1
+    while curientD > newD:
+        newP = p.copy()
+        for i in range(len(newP)):
+            newP[i] = (1.0 - ksy / len(newP)) * newP[i]
+        newP.append(ksy / len(newP))
+        newM = makeM(x, newP, delta)
+        newD = makeD(newM)
+        newD = A_optim(newD)
+        ksy /= 2
+    return newP
+
+
+# объединение близких точек
+def unionCloseDots(x, p):
+    newX = [x[0]]
+    newP = [p[0]]
+    for i in range(1, len(x)):
+        index = findClose(x[i], newX)
+        if index == -1:
+            newX.append(x[i])
+            newP.append(p[i])
+        else:
+            newP[index] += p[i]
+    return newX, newP
+
+
+# нахождение в массиве X индекса элемента, который близок к элементу x
+def findClose(x, X):
+    for i in range(len(X)):
+        vec = np.sqrt((x - X[i]) ** 2)
+        if vec < 0.025:
+            return i
+    return -1
+
+
+# удаление точек с малыми весами
+def removeDotsWithSmallWeitgh(x, p):
+    sum = 0
+    index = 0
+    for i in range(len(p)):
+        if p[i] < 0.01:
+            sum += p[i]
+            p[i] = 0
+            x[i] = 0
+            index += 1
+    for i in range(index):
+        p.remove(0)
+        x.remove(0)
+    sum /= len(p)
+    for i in range(len(p)):
+        p[i] += sum
     return x, p
 
-# Проверка оптимальности
 
-
-def A_optimal(x_plan, p_plan, delta):
-    n = 81
-    max = 0
-    grid = np.arange(-1, 1.01, 0.25)
-    x = []
-
-    for i in range(len(grid)):
-        for j in range(len(grid)):
-            x.append([grid[j], grid[i]])
-
-    for i in range(n):
-        condition = np.trace(np.dot(np.linalg.matrix_power(disp_matrix(inf_matrix(
-            x_plan, p_plan)), 2), np.dot(model(x[i], delta), np.transpose(model(x[i], delta)))))
-        if condition > max:
-            max = condition
-
-    trd = np.trace(disp_matrix(inf_matrix(x_plan, p_plan)))
-
-    return max, trd
-
-
-def plot(x_plan, p_plan):
-    fig, ax = plt.subplots()
-    cmap = plt.cm.coolwarm
-    for i in range(len(x_plan)):
-        ax.scatter(x_plan[i][0], x_plan[i][1], s=p_plan[i]*1000, cmap=cmap)
-    plt.grid()
+def Plot(x, grid, D, label, delta):
+    Dfunc = list(map(lambda x: np.dot(
+        np.dot(func(x, delta), D**2), func(x, delta)), grid))
+    maxD = max(Dfunc)
+    for i in x:
+        plt.scatter(i, 0)
+    for i in x:
+        plt.plot([i, i], [0, maxD], color='grey')
+    plt.plot([x[0], x[0]], [0, maxD], color='grey', label='План')
+    plt.plot(grid, Dfunc, color='red', label='d(x,e)')
+    F = [mu1]
+    Color = ['black', 'green']
+    Type = ['--', '.-']
+    for f, t, c in zip(F, Type, Color):
+        pltmu = list(map(lambda x: f(x, delta), grid))
+        plt.plot(grid, pltmu, t, color=c, label="{i}".format(i=f.__name__))
+    plt.legend(loc='best')
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
     plt.show()
 
 
 def main():
-    flag = True                     # Флаг выхода из градиентного спуска
-    n = 81                          # Кол-во точек на сетке
-    grad = np.zeros(n)              # Вектор градиента
-    count = 0                       # Cчётчик итераций
-    delta = 0.5
-    proj = np.zeros(n)
+    Delta = 0.5
+    N = 20
+    delta = 1
+    eps = 0.001
+    iteration = 1
+    sumiteration = 0
+    ito = 0
 
-    x_plan, p_plan = make_plan()    # Начальный план
+    x, p = makeUPlan(N)
+    write("input.txt", x, p)
+    D = makeD(makeM(x, p, Delta))
+    grid = np.linspace(-1, 1, 101)
+    Plot(x, grid, D, "График начального плана", Delta)
 
-    while flag:
-        flag = False
-        M = inf_matrix(x_plan, p_plan)
-        D = disp_matrix(M)
+    while abs(delta) > eps:
+        smalliteration = 0
+        while delta > eps:
+            delta, eps, x, p = addNewPoint(x, p, grid, Delta, True)
+            smalliteration += 1
+            if smalliteration > 10000:
+                break
+        x, p = unionCloseDots(x, p)
 
-        lambdas = 0.01  # Шаг по весам
-        q = n - np.count_nonzero(p_plan)
+        x, p = removeDotsWithSmallWeitgh(x, p)
+        ito += 1
+        sumiteration += smalliteration
+        delta, eps, x, p = addNewPoint(x, p, grid, Delta, False)
 
-        for i in range(81):     # Вычисление градиента
-            grad[i] = np.trace(np.dot(np.linalg.matrix_power(disp_matrix(inf_matrix(
-                x_plan, p_plan, delta)), 2), np.dot(model(x_plan[i], delta), np.transpose(model(x_plan[i], delta)))))
+        iteration += 1
+        print(iteration)
+        if iteration > 1000:
+            break
 
-        grad /= np.linalg.norm(grad)
-
-        avg = 0.0
-        for i in range(n):
-            if p_plan[i] != 0:
-                avg += grad[i]
-        avg /= n - q
-
-        for i in range(n):
-            if p_plan[i] != 0:
-                if abs(grad[i] - avg) > 1e-10:
-                    flag = True
-
-        for j in range(0, n):
-            proj[j] = grad[j] - avg
-            if p_plan[j] == 0:
-                if proj[j] > 0:
-                    flag = True
-                else:
-                    proj[j] = 0
-
-        if count % 200 == 0:
-            print(np.trace(D))
-            # print(np.linalg.norm(proj))
-
-        if flag:
-            for i in range(0, n):
-                if proj[i] < 0 and lambdas > - p_plan[i] / proj[i]:
-                    lambdas = - p_plan[i] / proj[i]
-
-            for i in range(0, n):
-                p_plan[i] += lambdas * proj[i]
-
-        count += 1
-
-    n_plan, np_plan = [], []
-    for i in range(len(p_plan)):
-        if p_plan[i] != 0:
-            n_plan.append(x_plan[i])
-            np_plan.append((p_plan[i]))
-
-    print(count)
-    a, b = A_optimal(n_plan, np_plan, delta)
-    print(np.trace(disp_matrix(inf_matrix(n_plan, np_plan, delta))))
+    write("output.txt ", x, p)
+    D = makeD(makeM(x, p, Delta))
+    Plot(x, grid, D, 'График оптимального плана', Delta)
 
 
 if __name__ == '__main__':
