@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 # заполняем входной файл
 def write(filename, x, p):
     f = open(filename, "w")
@@ -45,6 +44,15 @@ def mu1(dot, delta):
         return 0
 
 
+def mu2(dot, delta):
+    if -delta >= dot >= -1:
+        return 0.
+    elif delta >= dot >= -delta:
+        return (delta + dot) / 2 * delta
+    elif dot > delta:
+        return 1.
+
+
 # создание начального плана
 def makeUPlan(N):
     return list(np.linspace(-1, 1, N)), [1.0 / N for _ in range(N)]
@@ -59,14 +67,14 @@ def makeD(M):
 def addNewPoint(x, p, grid, delta, flag, usereps=0.01):
     M = makeM(x, p, delta)
     D = makeD(M)
-    curientD = A_optim(D)
+    curA = A_optim(D)
     max, maxdot = findMaxFi(grid, D, delta)
     if flag:
         x.append(maxdot)
-        p = addToP(curientD, p, x, delta)
+        p = addToP(curA, p, x, delta)
     eps = max * usereps
     delta = abs(max - np.trace(D @ D @ M))
-    print(np.linalg.det(M))
+    print(np.trace(D))
     return delta, eps, x, p
 
 
@@ -77,10 +85,10 @@ def A_optim(D):
 
 # функция нахождения максимума на сетке, для добавления новой точки
 def findMaxFi(grid, D, delta):
-    max = np.dot(np.dot(func(grid[0], delta), D @ D), func(grid[0], delta).T)
+    max = func(grid[0], delta) @ D @ D @ func(grid[0], delta).T
     maxdot = grid[0]
     for i in grid:
-        f = np.dot(np.dot(func(i, delta), D @ D), func(i, delta).T)
+        f = func(i, delta) @ D @ D @ func(i, delta).T
         if f > max:
             max = f
             maxdot = i
@@ -88,10 +96,10 @@ def findMaxFi(grid, D, delta):
 
 
 # Подбор веса для новой точки
-def addToP(curientD, p, x, delta):
-    newD = curientD - 1
+def addToP(curA, p, x, delta):
+    newD = curA - 1
     ksy = 1
-    while curientD > newD:
+    while curA > newD:
         newP = p.copy()
         for i in range(len(newP)):
             newP[i] = (1.0 - ksy / len(newP)) * newP[i]
@@ -146,8 +154,7 @@ def removeDotsWithSmallWeitgh(x, p):
 
 
 def Plot(x, grid, D, label, delta):
-    Dfunc = list(map(lambda x: np.dot(
-        np.dot(func(x, delta), D**2), func(x, delta)), grid))
+    Dfunc = list(map(lambda x: func(x, delta) @ D @ D @ func(x, delta), grid))
     maxD = max(Dfunc)
     for i in x:
         plt.scatter(i, 0)
@@ -155,13 +162,14 @@ def Plot(x, grid, D, label, delta):
         plt.plot([i, i], [0, maxD], color='grey')
     plt.plot([x[0], x[0]], [0, maxD], color='grey', label='План')
     plt.plot(grid, Dfunc, color='red', label='d(x,e)')
-    F = [mu1]
+    F = [mu1, mu2]
     Color = ['black', 'green']
     Type = ['--', '.-']
     for f, t, c in zip(F, Type, Color):
         pltmu = list(map(lambda x: f(x, delta), grid))
         plt.plot(grid, pltmu, t, color=c, label="{i}".format(i=f.__name__))
     plt.legend(loc='best')
+    plt.title(label)
     plt.xlabel('x')
     plt.ylabel('f(x)')
     plt.show()
@@ -169,9 +177,9 @@ def Plot(x, grid, D, label, delta):
 
 def main():
     Delta = 0.5
-    N = 20
+    N = 25
     delta = 1
-    eps = 0.001
+    eps = 0.01
     iteration = 1
     sumiteration = 0
     ito = 0
@@ -197,7 +205,7 @@ def main():
         delta, eps, x, p = addNewPoint(x, p, grid, Delta, False)
 
         iteration += 1
-        print(iteration)
+        print(f'Номер итерации {iteration}')
         if iteration > 1000:
             break
 
