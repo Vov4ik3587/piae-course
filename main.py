@@ -11,9 +11,9 @@ def write(filename, x, p, D):
     for i in p[1:]:
         f.write("\n" + str(i))
     if filename == 'input.txt':
-        f.write(f'Значение функционала начального плана: {np.trace(D)}')
+        f.write(f'\nЗначение функционала начального плана: {np.trace(D)}')
     else:
-        f.write(f'Значение функционала оптимального плана: {np.trace(D)}')
+        f.write(f'\nЗначение функционала оптимального плана: {np.trace(D)}')
     f.close()
 
 
