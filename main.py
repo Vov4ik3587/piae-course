@@ -177,7 +177,7 @@ def Plot(x, grid, D, label, delta):
 
 def main():
     Delta = 0.5
-    N = 25
+    N = 20
     delta = 1
     eps = 0.01
     iteration = 1
