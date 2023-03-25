@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # заполняем входной файл
-def write(filename, x, p):
+def write(filename, x, p, D):
     f = open(filename, "w")
     f.write(str(len(x)) + "\n")
     for i in x:
@@ -10,6 +10,10 @@ def write(filename, x, p):
     f.write(str(p[0]))
     for i in p[1:]:
         f.write("\n" + str(i))
+    if filename == 'input.txt':
+        f.write(f'Значение функционала начального плана: {np.trace(D)}')
+    else:
+        f.write(f'Значение функционала оптимального плана: {np.trace(D)}')
     f.close()
 
 
@@ -185,11 +189,10 @@ def main():
     ito = 0
 
     x, p = makeUPlan(N)
-    write("input.txt", x, p)
     D = makeD(makeM(x, p, Delta))
+    write("input.txt", x, p, D)
     grid = np.linspace(-1, 1, 101)
     Plot(x, grid, D, "График начального плана", Delta)
-
     while abs(delta) > eps:
         smalliteration = 0
         while delta > eps:
@@ -209,8 +212,8 @@ def main():
         if iteration > 1000:
             break
 
-    write("output.txt ", x, p)
     D = makeD(makeM(x, p, Delta))
+    write("output.txt ", x, p, D)
     Plot(x, grid, D, 'График оптимального плана', Delta)
 
 
