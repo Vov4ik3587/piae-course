@@ -158,14 +158,14 @@ def removeDotsWithSmallWeitgh(x, p):
 
 
 def Plot(x, grid, D, label, delta):
-    Dfunc = list(map(lambda x: func(x, delta) @ D @ D @ func(x, delta), grid))
-    maxD = max(Dfunc)
+    Afunc = list(map(lambda x: func(x, delta) @ D @ D @ func(x, delta), grid))
+    maxD = max(Afunc)
     for i in x:
         plt.scatter(i, 0)
     for i in x:
         plt.plot([i, i], [0, maxD], color='grey')
     plt.plot([x[0], x[0]], [0, maxD], color='grey', label='План')
-    plt.plot(grid, Dfunc, color='red', label='d(x,e)')
+    plt.plot(grid, Afunc, color='red', label='fi(x,e)')
     F = [mu1, mu2]
     Color = ['black', 'green']
     Type = ['--', '.-']
