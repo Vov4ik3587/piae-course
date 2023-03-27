@@ -43,7 +43,7 @@ def mu1(dot, delta):
     if -delta >= dot >= -1:
         return 1.
     elif delta >= dot >= -delta:
-        return (delta - dot) / 2 * delta
+        return (delta - dot) / (2 * delta)
     elif dot > delta:
         return 0
 
@@ -52,7 +52,7 @@ def mu2(dot, delta):
     if -delta >= dot >= -1:
         return 0.
     elif delta >= dot >= -delta:
-        return (delta + dot) / 2 * delta
+        return (delta + dot) / (2 * delta)
     elif dot > delta:
         return 1.
 
@@ -180,7 +180,7 @@ def Plot(x, grid, D, label, delta):
 
 
 def main():
-    Delta = 0.5
+    Delta = 0.2
     N = 20
     delta = 1
     eps = 0.01
